@@ -30,7 +30,6 @@ public class PrometheusHttpClient {
     static String topic;
     static String topic2 = "testtopic2";
     static String topic3 = "testtopic5";
-
     static Long poll;
     static String BOOTSTRAP_SERVERS;
     public static String CONSUMER_GROUP;
@@ -67,11 +66,7 @@ public class PrometheusHttpClient {
     static Instant lastScaletime1;
     static Instant lastScaletime2;
     static Instant lastScaletime3;
-
-
-
-
-    static long totalArrivalRate = 0;
+    //static long totalArrivalRate = 0;
     static long previoustotalArrivalRate = 20;
 
 
@@ -134,7 +129,6 @@ public class PrometheusHttpClient {
         log.info("topic1 has the following partitions {}", td.partitions().size());
         log.info("topic2 has the following partitions {}", td2.partitions().size());
         log.info("topic5 has the following partitions {}", td3.partitions().size());
-
     }
 
     public static void main(String[] args) throws ExecutionException, InterruptedException {
@@ -149,11 +143,7 @@ public class PrometheusHttpClient {
             lastScaletime1 = Instant.now();
             lastScaletime2 = Instant.now();
             lastScaletime3 = Instant.now();
-
-
-
             log.info("warming for 30 secs");
-
             Thread.sleep(30*1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -162,7 +152,7 @@ public class PrometheusHttpClient {
             log.info("New Iteration:");
             try {
                // queryConsumerGroup();
-                getCommittedLatestOffsetsAndLag();
+                Utils.getCommittedLatestOffsetsAndLag();
                // getCommittedLatestOffsetsAndLag2();
             } catch (ExecutionException | InterruptedException e) {
                 e.printStackTrace();
@@ -180,36 +170,30 @@ public class PrometheusHttpClient {
 
 
 
-    private static void youMightWanttoScaleUsingBinPack() {
-        log.info("Calling the bin pack scaler for topic1");
+     static void youMightWanttoScaleUsingBinPack() {
+        log.info("Calling the bin pack scaler for cg1");
        // int size = consumerGroupDescriptionMap.get(PrometheusHttpClient.CONSUMER_GROUP).members().size();
-
         if(Duration.between(lastScaletime1, Instant.now()).toSeconds() >= 15 ) {
             scaleAsPerBinPack(size);
         } else {
             log.info("Scale  cooldown period has not elapsed yet not taking decisions");
         }
-
-
         log.info("===================================");
     }
 
 
-
-    private static void youMightWanttoScaleUsingBinPack2() {
-        log.info("Calling the bin pack scaler for topic2");
-
+     static void youMightWanttoScaleUsingBinPack2() {
+        log.info("Calling the bin pack scaler for cg2");
         if(Duration.between(lastScaletime2, Instant.now()).toSeconds() >= 15 ) {
             scaleAsPerBinPack2(size2);
         } else {
             log.info("Scale  cooldown period has not elapsed yet not taking decisions");
         }
         log.info("===================================");
-
     }
 
-    private static void youMightWanttoScaleUsingBinPack3() {
-        log.info("Calling the bin pack scaler for topic1");
+     static void youMightWanttoScaleUsingBinPack3() {
+        log.info("Calling the bin pack scaler for cg");
 
         if(Duration.between(lastScaletime3, Instant.now()).toSeconds() >= 15 ) {
             scaleAsPerBinPack3(size3);
@@ -222,55 +206,35 @@ public class PrometheusHttpClient {
 
 
 
-    public static void scaleAsPerBinPack3(int currentsize) {
+     static void scaleAsPerBinPack3(int currentsize) {
         log.info("Currently we have this number of consumers group1 {}", currentsize);
         int neededsize = binPackAndScale3();
-        //int needsize2 = shallwescaletheother(neededsize);
-
         log.info("We currently need the following consumers for group3 (as per the bin pack) {}", neededsize);
-
         int replicasForscale = neededsize - currentsize;
         // but is the assignmenet the same
         if (replicasForscale > 0 ) {
 
-
             //TODO IF and Else IF can be in the same logic
             log.info("We have to upscale by group3 {}", replicasForscale);
-
             try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                 k8s.apps().deployments().inNamespace("default").withName("cons1persec5").scale(neededsize);
                 //scaling CG2 as well
-
                 log.info("I have Upscaled group3 you should have {}", neededsize);
-
                 size3 = neededsize;
-
             }
             lastScaletime3 = Instant.now();
-
         }
         else {
-
             int neededsized = binPackAndScaled3();
             int replicasForscaled =  currentsize -neededsized;
-
-
             if(replicasForscaled>0) {
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec5").scale(neededsized);
-                    //scaling CG2 as well
-
                     log.info("I have downscaled group3 you should have {}", neededsized);
                     size3 = neededsized;
-
                 }
                 lastScaletime3 = Instant.now();
-
             }
-
-           /* lastScaleUpDecision = Instant.now();
-            lastScaleDownDecision = Instant.now();
-            lastCGQuery = Instant.now();*/
         }
     }
 
@@ -278,37 +242,22 @@ public class PrometheusHttpClient {
     public static void scaleAsPerBinPack2(int currentsize) {
         log.info("Currently we have this number of consumers group2 {}", currentsize);
         int neededsize = binPackAndScale2();
-        //int needsize2 = shallwescaletheother(neededsize);
-
         log.info("We currently need the following consumers for group2 (as per the bin pack) {}", neededsize);
-
         int replicasForscale = neededsize - currentsize;
-        // but is the assignmenet the same
         if (replicasForscale > 0 ) {
-
-
             //TODO IF and Else IF can be in the same logic
             log.info("We have to upscale by group2 {}", replicasForscale);
-
             try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                 k8s.apps().deployments().inNamespace("default").withName("cons1persec2").scale(neededsize);
                 //scaling CG2 as well
-
                 log.info("I have Upscaled group2 you should have {}", neededsize);
                 size2 = neededsize;
-
             }
             lastScaletime2 = Instant.now();
-
         }
         else {
-            //size2 = neededsize;
-
-
             int neededsized = binPackAndScaled2();
             int replicasForscaled =  currentsize -neededsized;
-
-
             if(replicasForscaled>0) {
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec2").scale(neededsized);
@@ -320,11 +269,6 @@ public class PrometheusHttpClient {
                 }
                 lastScaletime2 = Instant.now();
             }
-
-           /* lastScaleUpDecision = Instant.now();
-            lastScaleDownDecision = Instant.now();
-            lastCGQuery = Instant.now();*/
-
         }
     }
 
@@ -334,23 +278,15 @@ public class PrometheusHttpClient {
     public static void scaleAsPerBinPack(int currentsize) {
         log.info("Currently we have this number of consumers group1 {}", currentsize);
         int neededsize = binPackAndScale();
-        //int needsize2 = shallwescaletheother(neededsize);
-
         log.info("We currently need the following consumers for group1 (as per the bin pack) {}", neededsize);
-
         int replicasForscale = neededsize - currentsize;
-        // but is the assignmenet the same
       if (replicasForscale > 0 ) {
             //TODO IF and Else IF can be in the same logic
             log.info("We have to upscale by group1 {}", replicasForscale);
-
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
-                    //scaling CG2 as well
-
                     log.info("I have Upscaled group1you should have {}", neededsize);
                     size= neededsize;
-
                 }
             lastScaletime1 = Instant.now();
         }
@@ -365,7 +301,6 @@ public class PrometheusHttpClient {
 
               }
               lastScaletime1 = Instant.now();
-
           }
         }
     }
@@ -633,7 +568,7 @@ public class PrometheusHttpClient {
     }
 
     private static int binPackAndScaled() {
-        log.info("Inside binPackAndScale ");
+        log.info("Inside binPackAndScaled ");
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
         List<Partition> parts = new ArrayList<>(partitions);
@@ -699,7 +634,7 @@ public class PrometheusHttpClient {
 
 
     private static int binPackAndScaled2() {
-        log.info("Inside binPackAndScale ");
+        log.info("Inside binPackAndScaled ");
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
         List<Partition> parts = new ArrayList<>(partitions2);
@@ -778,103 +713,7 @@ public class PrometheusHttpClient {
 
 
 
-    private static void getCommittedLatestOffsetsAndLag() throws ExecutionException, InterruptedException {
 
-
-                committedOffsets = admin.listConsumerGroupOffsets(CONSUMER_GROUP)
-                .partitionsToOffsetAndMetadata().get();
-
-        Map<TopicPartition, OffsetSpec> requestLatestOffsets = new HashMap<>();
-        Map<TopicPartition, OffsetSpec> requestTimestampOffsets1 = new HashMap<>();
-        Map<TopicPartition, OffsetSpec> requestTimestampOffsets2 = new HashMap<>();
-
-        for (TopicPartitionInfo p : td.partitions()) {
-            requestLatestOffsets.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest());
-            requestTimestampOffsets2.put(new TopicPartition(topic, p.partition()),
-                    OffsetSpec.forTimestamp(Instant.now().minusMillis(1500).toEpochMilli()));
-            requestTimestampOffsets1.put(new TopicPartition(topic, p.partition()),
-                    OffsetSpec.forTimestamp(Instant.now().minusMillis(sleep + 1500).toEpochMilli()));
-        }
-
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
-                admin.listOffsets(requestLatestOffsets).all().get();
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> timestampOffsets1 =
-                admin.listOffsets(requestTimestampOffsets1).all().get();
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> timestampOffsets2 =
-                admin.listOffsets(requestTimestampOffsets2).all().get();
-
-
-        long totalArrivalRate = 0;
-        double currentPartitionArrivalRate;
-        Map<Integer, Double> previousPartitionArrivalRate = new HashMap<>();
-        for (TopicPartitionInfo p : td.partitions()) {
-            previousPartitionArrivalRate.put(p.partition(), 0.0);
-        }
-        for (TopicPartitionInfo p : td.partitions()) {
-            TopicPartition t = new TopicPartition(topic, p.partition());
-            long latestOffset = latestOffsets.get(t).offset();
-            long timeoffset1 = timestampOffsets1.get(t).offset();
-            long timeoffset2 = timestampOffsets2.get(t).offset();
-            long committedoffset = committedOffsets.get(t).offset();
-            partitions.get(p.partition()).setLag(latestOffset - committedoffset);
-            partitions2.get(p.partition()).setLag(latestOffset - committedoffset);
-
-            //TODO if abs(currentPartitionArrivalRate -  previousPartitionArrivalRate) > 15
-            //TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
-            if(timeoffset2==timeoffset1)
-                break;
-
-            if (timeoffset2 == -1) {
-                timeoffset2 = latestOffset;
-            }
-            if (timeoffset1 == -1) {
-                // NOT very critical condition
-                currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
-                partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
-                partitions2.get(p.partition()).setArrivalRate(currentPartitionArrivalRate*0.7);
-                partitions3.get(p.partition()).setArrivalRate(currentPartitionArrivalRate*0.7);
-
-
-
-            } else {
-                currentPartitionArrivalRate = (double) (timeoffset2 - timeoffset1) / doublesleep;
-                //if(currentPartitionArrivalRate==0) continue;
-                //TODO only update currentPartitionArrivalRate if (currentPartitionArrivalRate - previousPartitionArrivalRate) < 10 or threshold
-                // currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
-                //TODO break
-                partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
-                partitions2.get(p.partition()).setArrivalRate(currentPartitionArrivalRate*0.7);
-                partitions3.get(p.partition()).setArrivalRate(currentPartitionArrivalRate*0.7);
-
-
-
-            }
-            //TODO add a condition for when both offsets timeoffset2 and timeoffset1 do not exist, i.e., are -1,
-            previousPartitionArrivalRate.put(p.partition(), currentPartitionArrivalRate);
-            totalArrivalRate += currentPartitionArrivalRate;
-        }
-        //report total arrival only if not zero only the loop has not exited.
-        log.info("totalArrivalRate for topic 1 {}", totalArrivalRate);
-
-
-
-     if(Math.abs(previoustotalArrivalRate - totalArrivalRate) > 15) {
-         log.info("sorry");
-         return;
-     }
-
-        previoustotalArrivalRate = totalArrivalRate;
-
-        youMightWanttoScaleUsingBinPack();
-        youMightWanttoScaleUsingBinPack2();
-        youMightWanttoScaleUsingBinPack3();
-
-
-
-
-     /*   if (Duration.between(lastScaletime, Instant.now()).getSeconds()> 15)
-            youMightWanttoScaleUsingBinPack();*/
-    }
 
 
 
